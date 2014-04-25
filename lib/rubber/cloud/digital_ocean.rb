@@ -7,17 +7,17 @@ module Rubber
 
       def initialize(env, capistrano)
         compute_credentials = {
-          :provider => 'DigitalOcean',
-          :digitalocean_api_key => env.api_key,
-          :digitalocean_client_id => env.client_key
+            :provider               => 'DigitalOcean',
+            :digitalocean_api_key   => env.api_key,
+            :digitalocean_client_id => env.client_key
         }
 
         if env.cloud_providers && env.cloud_providers.aws
           storage_credentials = {
-            :provider => 'AWS',
-            :aws_access_key_id => env.cloud_providers.aws.access_key,
-            :aws_secret_access_key => env.cloud_providers.aws.secret_access_key,
-            :path_style => true
+              :provider              => 'AWS',
+              :aws_access_key_id     => env.cloud_providers.aws.access_key,
+              :aws_secret_access_key => env.cloud_providers.aws.secret_access_key,
+              :path_style            => true
           }
 
           storage_credentials[:region] = env.cloud_providers.aws.region
@@ -55,19 +55,20 @@ module Rubber
             raise 'Missing key_file for DigitalOcean'
           end
         end
-
-        response = compute_provider.servers.create(:name => "#{Rubber.env}-#{instance_alias}",
-                                                   :image_id => image.id,
-                                                   :flavor_id => flavor.id,
-                                                   :region_id => do_region.id,
-                                                   :ssh_key_ids => [ssh_key['id']])
+        response = compute_provider.servers.create(:name               => "#{Rubber.env}-#{instance_alias}",
+                                                   :image_id           => image.id,
+                                                   :flavor_id          => flavor.id,
+                                                   :region_id          => do_region.id,
+                                                   :ssh_key_ids        => [ssh_key['id']],
+                                                   :private_networking => true
+        )
 
         response.id
       end
 
       def describe_instances(instance_id=nil)
         instances = []
-        opts = {}
+        opts      = {}
 
         if instance_id
           response = [compute_provider.servers.get(instance_id)]
@@ -76,15 +77,15 @@ module Rubber
         end
 
         response.each do |item|
-          instance = {}
-          instance[:id] = item.id
-          instance[:state] = item.state
-          instance[:type] = item.flavor_id
+          instance               = {}
+          instance[:id]          = item.id
+          instance[:state]       = item.state
+          instance[:type]        = item.flavor_id
           instance[:external_ip] = item.public_ip_address
-          instance[:internal_ip] = item.public_ip_address
-          instance[:region_id] = item.region_id
-          instance[:provider] = 'digital_ocean'
-          instance[:platform] = Rubber::Platforms::LINUX
+          instance[:internal_ip] = item.private_ip_address || item.public_ip_address # incase of the region doesn't support private networking
+          instance[:region_id]   = item.region_id
+          instance[:provider]    = 'digital_ocean'
+          instance[:platform]    = Rubber::Platforms::LINUX
           instances << instance
         end
 
